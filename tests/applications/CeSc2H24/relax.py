@@ -1,3 +1,4 @@
+import os
 import argparse
 
 from pathlib import Path
@@ -9,9 +10,11 @@ from ase.units import GPa
 
 # 设置命令行参数解析
 parser = argparse.ArgumentParser(description='Relax a structure using MatterSim.')
-parser.add_argument('-i', '--input', type=str,  default="POSCAR",  help='Input structure file (e.g., POSCAR)')
-parser.add_argument('-o', '--output', type=str, default="CONTCAR", help='Output structure file (e.g., CONTCAR)')
-parser.add_argument('-p', '--pressure', type=float, required=True, help='Pressure in GPa for relaxation')
+parser.add_argument('-i', '--input',    type=str,   default="POSCAR",  help='Input structure file (e.g., POSCAR)')
+parser.add_argument('-o', '--output',   type=str,   default="CONTCAR", help='Output structure file (e.g., CONTCAR)')
+parser.add_argument('-c', '--detailed-conditions', type=str, nargs='+', default=[], 
+                        help="List of subdirectories or patterns for detailed selection")
+parser.add_argument('-p', '--pressure', type=float, required=True,     help='Pressure in GPa for relaxation')
 parser.add_argument('-s', '--symmetry', action='store_true', help='Constrain symmetry during relaxation')
 parser.add_argument('-m', '--optimizer-method', type=str, default='FIRE', choices=['FIRE', 'BFGS'], help='Optimization method (FIRE or BFGS)')
 
@@ -28,27 +31,43 @@ relaxer = Relaxer(
     constrain_symmetry=args.symmetry,  # 是否保持对称性
 )
 
-# 读取输入文件
-atoms = read(args.input)
-atoms.calc = calc
+def relax(atoms, optimizer_method, symmetry, pressure):
+    # 执行结构优化
+    converged, relaxed_structure = relaxer.relax_structures(
+        atoms,
+        optimizer=optimizer_method,   # 使用命令行指定的优化方法
+        filter='EXPCELLFILTER',            # 使用指数型过滤器
+        constrain_symmetry=symmetry,  # 是否保持对称性
+        fmax=0.01,                         # 力的收敛阈值
+        pressure_in_GPa=pressure,     # 使用命令行指定的压强
+        steps=500                          # 最大优化步数
+    )
 
-# 执行结构优化
-converged, relaxed_structure = relaxer.relax_structures(
-    atoms,
-    optimizer=args.optimizer_method,   # 使用命令行指定的优化方法
-    filter='EXPCELLFILTER',            # 使用指数型过滤器
-    constrain_symmetry=args.symmetry,  # 是否保持对称性
-    fmax=0.01,                         # 力的收敛阈值
-    pressure_in_GPa=args.pressure,     # 使用命令行指定的压强
-    steps=500                          # 最大优化步数
-)
+    # 输出优化后的结构
+    write(args.output, relaxed_structure, format='vasp')
 
-# 输出优化后的结构
-write(args.output, relaxed_structure, format='vasp')
-# print('Relaxed structure written to CONTCAR')
-print(f"Cell stress = {relaxed_structure.get_stress() / GPa} GPa")    
-print(f"Cell stress = {relaxed_structure.get_stress()} ") 
-U  = relaxed_structure.get_total_energy()
-PV = relaxed_structure.get_volume()*args.pressure*6.242e-9                   
-print(f"{args.input} {args.output} {relaxed_structure.symbols} {U} {PV} {U+PV}")
+    # print('Relaxed structure written to CONTCAR')
+    print(f"Cell stress = {relaxed_structure.get_stress() / GPa} GPa")    
+    print(f"Cell stress = {relaxed_structure.get_stress()} ") 
+    U  = relaxed_structure.get_total_energy()
+    PV = relaxed_structure.get_volume()*args.pressure*6.242e-3      
+    H  = U + PV            
+    print(f"{args.input} {args.output} {relaxed_structure.symbols} {U} {PV} {H}")
+
+
+if __name__ == "__main__":
+    # 读取输入文件
+    if os.path.isdir(args.input):
+        for root, dirs, files_in_dir in os.walk(args.input):
+            for filename in files_in_dir:
+                filepath = os.path.join(root, filename)
+                # 过滤指定结构
+                if all(pattern in filepath for pattern in args.detailed_conditions):
+                    atoms = read(filepath)
+                    atoms.calc = calc
+                    relax(atoms, args.optimizer_method, args.symmetry, args.pressure)
+    elif os.path.isfile(args.input):
+        atoms = read(args.input)
+        atoms.calc = calc
+        relax(atoms, args.optimizer_method, args.symmetry, args.pressure)
 
