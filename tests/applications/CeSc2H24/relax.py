@@ -13,10 +13,11 @@ parser = argparse.ArgumentParser(description='Relax a structure using MatterSim.
 parser.add_argument('-i', '--input',    type=str,   default="POSCAR",  help='Input structure file (e.g., POSCAR)')
 parser.add_argument('-o', '--output',   type=str,   default="CONTCAR", help='Output structure file (e.g., CONTCAR)')
 parser.add_argument('-c', '--detailed-conditions', type=str, nargs='+', default=[], 
-                        help="List of subdirectories or patterns for detailed selection")
+                    help="List of subdirectories or patterns for detailed selection")
 parser.add_argument('-p', '--pressure', type=float, required=True,     help='Pressure in GPa for relaxation')
 parser.add_argument('-s', '--symmetry', action='store_true', help='Constrain symmetry during relaxation')
-parser.add_argument('-m', '--optimizer-method', type=str, default='FIRE', choices=['FIRE', 'BFGS'], help='Optimization method (FIRE or BFGS)')
+parser.add_argument('-m', '--optimizer-method', type=str, default='FIRE', choices=['FIRE', 'BFGS'], 
+                    help='Optimization method (FIRE or BFGS)')
 
 args = parser.parse_args()
 
