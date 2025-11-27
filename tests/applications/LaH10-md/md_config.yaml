@@ -1,0 +1,27 @@
+# LaH10 NPT Langevin 模拟配置
+structure_file: std_H10La_Fm-3m_225_.vasp
+checkpoint: mattersim-v1.0.0-5m
+device: cuda  # 自动切换至 CPU 时可改为 cpu
+random_seed: 42
+
+simulation:
+  ensemble: NPT_Langevin
+  target_temperature_K: 300
+  target_pressure_GPa: 150
+  timestep_fs: 0.5
+  total_steps: 20000
+  log_interval: 10
+  trajectory_interval: 25
+  pressure_control_interval: 5
+  restart_interval: 200
+  friction_timescale_fs: 150.0
+  barostat_timescale_fs: 1200.0
+  bulk_modulus_GPa: 220.0
+
+output:
+  workdir: outputs
+  logfile: md_300K_150GPa.log
+  trajectory: md_300K_150GPa.traj
+  thermo_csv: md_300K_150GPa.csv
+  restart: md_300K_150GPa_restart.npz
+  summary: md_300K_150GPa_summary.json
